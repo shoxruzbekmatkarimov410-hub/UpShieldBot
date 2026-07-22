@@ -1,10 +1,10 @@
 import os
 import logging
+import asyncio
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 
-# Tokenni Render muhitidan o'qib oladi
 TOKEN = os.getenv("BOT_TOKEN")
 
 logging.basicConfig(level=logging.INFO)
@@ -15,15 +15,19 @@ dp = Dispatcher()
 CARD_NUMBER = "9860606761428865"
 CARD_HOLDER = "MATKARIMOV SHOXRUZBEK"
 
-# 1. Asosiy menyu tugmalari (Xabar yozish joyining yonida turadigan doimiy tugmalar)
+# Fa ishlab turgan foydalanuvchi botlarini saqlash uchun lug'at (Task'lar)
+running_user_bots = {}
+
+# 1. Asosiy menyu tugmalari
 def get_main_menu():
     builder = ReplyKeyboardBuilder()
     builder.button(text="🌐 URL Qo'shish")
     builder.button(text="📊 Saytlarim")
+    builder.button(text="🤖 Bot Qo'shish (24/7)")
     builder.button(text="🛡 Xavfsizlik")
     builder.button(text="⚙️ Sozlamalar")
     builder.button(text="💎 Premium")
-    builder.adjust(2, 2, 1)
+    builder.adjust(2, 2, 2)
     return builder.as_markup(resize_keyboard=True)
 
 # 2. Tilni tanlash inline tugmalari
@@ -45,7 +49,7 @@ def get_premium_menu():
     builder.adjust(1)
     return builder.as_markup()
 
-# /start komissiyasi (Foydalanuvchi niki, bot nomi va vazifasi)
+# /start komissiyasi
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
     user_name = message.from_user.full_name
@@ -55,15 +59,14 @@ async def cmd_start(message: types.Message):
     welcome_text = (
         f"Assalomu alaykum, **{user_name}**!\n\n"
         f"🤖 Men — **{bot_name}** botiman.\n"
-        f"📌 **Bajaradigan vazifam:** Sayt va havolalaringiz xavfsizligini monitoring qilish va himoya qilish.\n\n"
+        f"📌 **Bajaradigan vazifam:** Saytlar xavfsizligini monitoring qilish va o'z botlaringizni 24/7 rejimida bepul yurgizib berish.\n\n"
         f"Iltimos, tilni tanlang:"
     )
     
-    # Menyu tugmalarini va til tanlashni yuborish
     await message.answer(welcome_text, reply_markup=get_main_menu(), parse_mode="Markdown")
     await message.answer("🌐 Tilni tanlang / Выберите язык / Select language:", reply_markup=get_lang_menu())
 
-# Tilni tanlash callback'lari
+# Tilni tanlash
 @dp.callback_query(F.data.startswith("lang_"))
 async def language_chosen(callback: types.CallbackQuery):
     await callback.answer()
@@ -78,7 +81,56 @@ async def language_chosen(callback: types.CallbackQuery):
         
     await callback.message.answer(text)
 
-# Premium bo'limi bosilganda
+# --- FOYDALANUVCHI BOTINI 24/7 ISHLatuvchi FUNKSIYA ---
+async def start_user_bot_polling(user_token: str):
+    """Foydalanuvchi tokeni orqali uning botini fonda 24/7 ishga tushiradi"""
+    u_bot = Bot(token=user_token)
+    u_dp = Dispatcher()
+    
+    @u_dp.message(Command("start"))
+    async def u_start(message: types.Message):
+        await message.answer("Salom! Bu bot UpShieldBot orqali 24/7 rejimida ishga tushirildi! 🚀")
+        
+    try:
+        await u_dp.start_polling(u_bot)
+    except Exception as e:
+        logging.error(f"User bot error: {e}")
+
+@dp.message(F.text == "🤖 Bot Qo'shish (24/7)")
+async def ask_for_bot_token(message: types.Message):
+    await message.answer(
+        "🤖 O'z botingizni 24/7 ishga tushirish uchun @BotFather'dan olgan **Token**ingizni yuboring:\n\n"
+        "_Masalan: `123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ`_",
+        parse_mode="Markdown"
+    )
+
+# Token kelganda uni tekshirib 24/7 ishga tushirish
+@dp.message(F.text.contains(":") and F.text.len() > 30)
+async def register_user_bot(message: types.Message):
+    user_token = message.text.strip()
+    
+    try:
+        test_bot = Bot(token=user_token)
+        bot_info = await test_bot.get_me()
+        await test_bot.session.close()
+        
+        if user_token not in running_user_bots:
+            # Fondagi vazifaga qo'shamiz (24/7 ishlashi uchun)
+            task = asyncio.create_task(start_user_bot_polling(user_token))
+            running_user_bots[user_token] = task
+            
+            await message.answer(
+                f"✅ **Tabriklaymiz!**\n\n"
+                f"🤖 @{bot_info.username} muvaffaqiyatli ulandi va hozirda **24/7 rejimida** ishga tushirildi! 🚀",
+                parse_mode="Markdown"
+            )
+        else:
+            await message.answer("⚠️ Bu bot allaqachon ulangan va ishlamoqda!")
+            
+    except Exception:
+        await message.answer("❌ Xatolik: Token noto'g'ri yoki yaroqsiz. Iltimos, @BotFather'dan to'g'ri tokenni yuboring.")
+
+# --- PREMIUM VA BOSHQA BO'LIMLAR ---
 @dp.message(F.text == "💎 Premium")
 async def show_premium(message: types.Message):
     text = (
@@ -87,7 +139,6 @@ async def show_premium(message: types.Message):
     )
     await message.answer(text, reply_markup=get_premium_menu(), parse_mode="Markdown")
 
-# Tarifni tanlaganda narx va karta chiqishi
 @dp.callback_query(F.data.startswith("prem_"))
 async def process_premium_choice(callback: types.CallbackQuery):
     await callback.answer()
@@ -112,7 +163,6 @@ async def process_premium_choice(callback: types.CallbackQuery):
     
     await callback.message.answer(payment_text, parse_mode="Markdown")
 
-# Qolgan tugmalar
 @dp.message(F.text == "🌐 URL Qo'shish")
 async def add_url(message: types.Message):
     await message.answer("Iltimos, monitoring qilish uchun URL manzilni yuboring:")
@@ -133,5 +183,4 @@ async def main():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    import asyncio
     asyncio.run(main())
