@@ -425,4 +425,4 @@ async def process_security_check(callback: types.CallbackQuery):
     msg = await callback.message.answer("🔍 Tahlil bajarilmoqda...\n⏳ Iltimos, kuting...")
     await asyncio.sleep(2)
     
-    if ch
+    if ch:
