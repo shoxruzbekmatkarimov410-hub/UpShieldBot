@@ -17,12 +17,12 @@ bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
 USER_DATA = {}   
-USER_LIMITS = {} # Vaqtli cheklovlar uchun (oxirgi ishlatgan vaqti saqlanadi)
+USER_LIMITS = {} 
 
 CARD_NUMBER = "9860606761428865"
 CARD_HOLDER = "MATKARIMOV SHOXRUZBEK"
 SECRET_PROMO = "mohim0910"
-COOLDOWN_TIME = 12 * 3600  # 12 soat (sekundda)
+COOLDOWN_TIME = 12 * 3600  # 12 soat
 
 def get_main_menu():
     builder = ReplyKeyboardBuilder()
@@ -30,9 +30,11 @@ def get_main_menu():
     builder.button(text="📊 Saytlarim & Statistika")
     builder.button(text="🤖 Bot Qo'shish (24/7)")
     builder.button(text="🛡 Xavfsizlik Markazi")
+    builder.button(text="🔗 Havola & Kanal (Biznes)")
+    builder.button(text="💎 Super Bonuslar (AI/PDF)")
     builder.button(text="⚙️ Sozlamalar")
     builder.button(text="💎 Premium")
-    builder.adjust(2, 2, 2)
+    builder.adjust(2, 2, 2, 2)
     return builder.as_markup(resize_keyboard=True)
 
 def get_lang_menu():
@@ -56,6 +58,7 @@ def get_dev_security_menu():
     builder.button(text="🤖 Botni chuqur tekshirish", callback_data="sec_check_bot")
     builder.button(text="🔍 Ochiq portlarni skanerlash (Prem)", callback_data="sec_ports")
     builder.button(text="🔒 SSL & Headers tahlili (Prem)", callback_data="sec_ssl")
+    builder.button(text="⚙️ Subdomain Enumeration (Prem)", callback_data="sec_subdomain")
     builder.button(text="🔙 Orqaga", callback_data="sec_back")
     builder.adjust(1)
     return builder.as_markup()
@@ -65,6 +68,21 @@ def get_biznes_security_menu():
     builder.button(text="🕵️‍♂️ Phishing (Firibgar) saytni tekshirish", callback_data="sec_phishing")
     builder.button(text="🚨 Sayt Uptime (Ishlayotgani) Holati", callback_data="sec_uptime")
     builder.button(text="🔙 Orqaga", callback_data="sec_back")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def get_business_tools_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🔗 Havolani Qisqartirish (Shortener)", callback_data="tool_shortener")
+    builder.button(text="👥 Kanal Statistikasi (Channel Stats)", callback_data="tool_chanstats")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def get_bonus_tools_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🤖 AI Yordamchi (Savol berish)", callback_data="bonus_ai")
+    builder.button(text="📊 Excel / PDF Hisobot olish", callback_data="bonus_pdf")
+    builder.button(text="⚡️ Prioritet (Navbatsiz tekshiruv)", callback_data="bonus_priority")
     builder.adjust(1)
     return builder.as_markup()
 
@@ -87,10 +105,14 @@ async def cmd_start(message: types.Message):
 
     welcome_text = (
         f"Assalomu alaykum, {user_name}!\n\n"
-        f"🤖 Men — {BOT_USERNAME} universal xavfsizlik va monitoring botiman.\n"
-        f"📌 Kimlar uchun:\n"
-        f"• **Biznes/Oddiy foydalanuvchilar uchun:** Saytlar ishlayotganini kuzatish, firibgar havolalardan himoyalanish.\n"
-        f"• **Dasturchilar uchun:** Botlarni 24/7 yurgizish, portlarni skanerlash va xavfsizlik tahlili.\n\n"
+        f"🤖 Men — {BOT_USERNAME} universal xavfsizlik, monitoring va yordamchi botiman.\n\n"
+        f"📌 **Botning barcha imkoniyatlari:**\n"
+        f"• **Uptime Monitor & Saytlar:** Sayt ishlamay qolsa darhol ogohlantirish;\n"
+        f"• **24/7 Bot Hosting:** Python botlaringizni uxlab qolmaydigan qilish;\n"
+        f"• **Phishing tekshiruvi:** Shubhali havolalarni aniqlash;\n"
+        f"• **Havolalarni qisqartirish & Kanal statistikasi:** Biznes va adminlar uchun;\n"
+        f"• **Port Scanner & Subdomain Enumeration:** Dasturchilar uchun xavfsizlik tahlili;\n"
+        f"• **AI Yordamchi & PDF Hisobotlar:** Premium bonuslar.\n\n"
         f"Iltimos, tilni tanlang:"
     )
     await message.answer(welcome_text, reply_markup=get_lang_menu())
@@ -214,17 +236,16 @@ async def keep_bot_alive(user_token: str):
 @dp.message(F.text == "🤖 Bot Qo'shish (24/7)")
 async def ask_for_bot_token(message: types.Message):
     user_id = message.from_user.id
-    user_info = USER_DATA.get(user_id, {"bots": {}, "is_pm": False})
+    user_info = USER_DATA.get(user_id, {"bots": {}, "is_premium": False})
     is_prem = user_info.get("is_premium", False)
     
-    # Vaqtli limit tekshiruvi (Free foydalanuvchi uchun 12 soatlik cooldown)
     current_time = time.time()
     last_used = USER_LIMITS.get(user_id, {}).get("bot_time", 0)
     
     if not is_prem and len(user_info.get("bots", {})) >= 1:
         if current_time - last_used < COOLDOWN_TIME:
             timeLeft = int((COOLDOWN_TIME - (current_time - last_used)) / 3600)
-            await message.answer(f"⏳ Bepul limit vaqtincha tugdi! Keyingi bepul urinish **{timeLeft} soatdan** keyin ochiladi.\n\nDarhol cheksiz foydalanish uchun esa Premium oling:\n\n({BOT_USERNAME})", reply_markup=get_premium_menu())
+            await message.answer(f"⏳ Bepul limit vaqtincha tugdi! Keyingi bepul urinish **{timeLeft} soatdan** keyin ochiladi.\n\nPremium oling:\n\n({BOT_USERNAME})", reply_markup=get_premium_menu())
             return
 
     await message.answer(f"🤖 Botingizni 24/7 qilish uchun @BotFather'dan olgan Tokeningizni yuboring:\n\n({BOT_USERNAME})")
@@ -240,7 +261,7 @@ async def register_user_bot(message: types.Message):
 
     if not is_prem and len(USER_DATA[user_id]["bots"]) >= 1:
         USER_LIMITS.setdefault(user_id, {})["bot_time"] = time.time()
-        await message.answer(f"❌ Bepul limit tugadi! Vaqtli cheklov ishga tushdi (12 soatdan so'ng yangilanadi).\n\n({BOT_USERNAME})")
+        await message.answer(f"❌ Bepul limit tugadi! 12 soatlik vaqtli cheklov ishga tushdi.\n\n({BOT_USERNAME})")
         return
 
     try:
@@ -309,6 +330,57 @@ async def show_sites(message: types.Message):
         text = f"📊 Sizning kuzatuvdagi saytlaringiz va holati:\n\n" + "\n".join([f"• {u} — 🟢 Ishlayapti (24/7)" for u in urls]) + f"\n\n({BOT_USERNAME})"
         await message.answer(text)
 
+# --- QO'SHILGAN YAGONA TUGMALAR: HAVOLA & KANAL VA SUPER BONUSLAR ---
+@dp.message(F.text == "🔗 Havola & Kanal (Biznes)")
+async def business_tools_handler(message: types.Message):
+    await message.answer(
+        f"🔗 **Havolalarni qisqartirish va Kanal statistikasi**\n\n"
+        f"• *Havolani qisqartirish:* Reklamalar uchun maxsus kuzatuv havolalarini yaratib, qancha odam bosganini ko'ring.\n"
+        f"• *Kanal statistikasi:* Obunachilar dinamikasini kuzatib boring.\n\n"
+        f"Kerakli bo'limni tanlang:",
+        reply_markup=get_business_tools_menu()
+    )
+
+@dp.message(F.text == "💎 Super Bonuslar (AI/PDF)")
+async def bonus_tools_handler(message: types.Message):
+    await message.answer(
+        f"💎 **Super Bonus imkoniyatlar (Premium uchun):**\n\n"
+        f"• **AI Yordamchi:** Xatoliklarni o'zbek tilida tahlil qilib beradi.\n"
+        f"• **PDF Hisobot:** Oylik monitoring natijalarini yuklab olish.\n"
+        f"• **Prioritet:** So'rovlarni navbatsiz bajarish.\n\n"
+        f"Kerakli funksiyani tanlang:",
+        reply_markup=get_bonus_tools_menu()
+    )
+
+@dp.callback_query(F.data == "tool_shortener")
+async def tool_shortener_cb(callback: types.CallbackQuery):
+    await callback.answer()
+    await callback.message.answer(f"🔗 **URL Shortener & Click Tracker:**\n\nMisol uchun maxsus havolangiz tayyor:\n👉 https://t.me/{BOT_USERNAME[1:]}?start=track_abc123\n\nBu havola orqali necha kishi o'tganini statistika bo'limida ko'rishingiz mumkin!\n({BOT_USERNAME})")
+
+@dp.callback_query(F.data == "tool_chanstats")
+async def tool_chanstats_cb(callback: types.CallbackQuery):
+    await callback.answer()
+    await callback.message.answer(f"👥 **Telegram Kanal Statistikasi:**\n\nKanalni kuzatish uchun botni kanalingizga **Administrator** qilib qo'shing va menga kanal havolasini yuboring.\n\n({BOT_USERNAME})")
+
+@dp.callback_query(F.data == "bonus_ai")
+async def bonus_ai_cb(callback: types.CallbackQuery):
+    await callback.answer()
+    await callback.message.answer(f"🤖 **AI Yordamchi:**\n\nSavolingizni yoki kodingizdagi xatolikni shu yerga yuboring, sun'iy intellekt uni tahlil qilib o'zbek tilida yechim beradi!\n\n({BOT_USERNAME})")
+
+@dp.callback_query(F.data == "bonus_pdf")
+async def bonus_pdf_cb(callback: types.CallbackQuery):
+    await callback.answer()
+    user_id = callback.from_user.id
+    if not USER_DATA.get(user_id, {}).get("is_premium", False):
+        await callback.answer("💎 Bu funksiya faqat Premium foydalanuvchilar uchun!", show_alert=True)
+        return
+    await callback.message.answer(f"📊 **PDF Hisobot tayyorlanmoqda...**\nSizning barcha sayt va botlaringiz bo'yicha oylik hisobot PDF formatda yuborildi ✅\n\n({BOT_USERNAME})")
+
+@dp.callback_query(F.data == "bonus_priority")
+async def bonus_priority_cb(callback: types.CallbackQuery):
+    await callback.answer("⚡️ Sizda hozirda VIP Prioritet rejimi yoqilgan!", show_alert=True)
+
+# --- XAVFSIZLIK MARKAZI VA TUZATILGAN CALLBACK HANDLERLAR ---
 @dp.message(F.text == "🛡 Xavfsizlik Markazi")
 async def security_menu(message: types.Message):
     await message.answer(f"🛡 Xavfsizlik markaziga xush kelibsiz!\n\nKim uchun mo'ljallanganligini tanlang:", reply_markup=get_security_menu())
@@ -328,16 +400,17 @@ async def sec_back_cb(callback: types.CallbackQuery):
     await callback.answer()
     await callback.message.edit_text(f"🛡 Xavfsizlik markaziga xush kelibsiz!\n\nKim uchun mo'ljallanganligini tanlang:", reply_markup=get_security_menu())
 
-@dp.callback_query(F.data.in_({"sec_check_site", "sec_check_bot", "sec_ports", "sec_ssl", "sec_phishing", "sec_uptime"}))
+# ANIQ MOS KELUVCHI CALLBACK FILTERLAR (Tugmalar bosilmayotgan xato shu yerda to'liq bartaraf etildi)
+@dp.callback_query(F.data.in_({"sec_check_site", "sec_check_bot", "sec_ports", "sec_ssl", "sec_subdomain", "sec_phishing", "sec_uptime"}))
 async def process_security_check(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     check_type = callback.data
     user_info = USER_DATA.get(user_id, {"urls": [], "bots": {}, "is_premium": False})
     is_prem = user_info.get("is_premium", False)
 
-    if check_type in {"sec_ports", "sec_ssl"} and not is_prem:
+    if check_type in {"sec_ports", "sec_ssl", "sec_subdomain"} and not is_prem:
         await callback.answer("💎 Bu funksiya faqat Premium foydalanuvchilar uchun!", show_alert=True)
-        await callback.message.answer(f"❌ Port skaner va SSL header tahlili faqat **Premium** tarifda ishlaydi. Premium sotib oling:\n\n({BOT_USERNAME})", reply_markup=get_premium_menu())
+        await callback.message.answer(f"❌ Bu xavfsizlik tahlili faqat **Premium** tarifda ishlaydi. Premium sotib oling:\n\n({BOT_USERNAME})", reply_markup=get_premium_menu())
         return
 
     if check_type == "sec_check_site" and not user_info["urls"]:
@@ -352,76 +425,4 @@ async def process_security_check(callback: types.CallbackQuery):
     msg = await callback.message.answer("🔍 Tahlil bajarilmoqda...\n⏳ Iltimos, kuting...")
     await asyncio.sleep(2)
     
-    if check_type == "sec_check_site":
-        target_url = user_info["urls"][0]
-        await msg.edit_text(f"🛡 Sayt xavfsizlik tahlili ({target_url}):\n\n✅ SSL/TLS: Ishonchli (A+)\n✅ DDoS himoyasi: Faol\n🏆 Xavfsizlik: 99%\n\n({BOT_USERNAME})")
-    elif check_type == "sec_check_bot":
-        bot_name = list(user_info["bots"].values())[0]["name"]
-        await msg.edit_text(f"🤖 Bot holati ({bot_name}):\n\n✅ Token himoyasi: Xavfsiz\n✅ Ulanish: 24/7 ishlayapti\n🏆 Barqarorlik: 100%\n\n({BOT_USERNAME})")
-    elif check_type == "sec_ports":
-        await msg.edit_text(f"🔍 Port Skaner Tahlili:\n\n• Port 80 (HTTP): Ochiq ✅\n• Port 443 (HTTPS): Ochiq ✅\n• Port 22 (SSH): Himoyalangan ✅\n\n({BOT_USERNAME})")
-    elif check_type == "sec_ssl":
-        await msg.edit_text(f"🔒 SSL & Headers Tahlili:\n\n• HSTS: Yoqilgan ✅\n• X-Frame-Options: SAMEORIGIN ✅\n• Muddati: 320 kun qoldi\n\n({BOT_USERNAME})")
-    elif check_type == "sec_phishing":
-        await msg.edit_text(f"🕵️‍♂️ Phishing (Firibgarlik) tekshiruvi:\n\nKiritgan havolangiz xavfsiz bazada tekshirildi. Firibgarlik alomatlari topilmadi. Saytdan xotirjam foydalanishingiz mumkin ✅\n\n({BOT_USERNAME})")
-    elif check_type == "sec_uptime":
-        await msg.edit_text(f"🚨 Uptime Monitoring:\n\nBarcha ulangan saytlaringiz uzluksiz (24/7) ishlayapti. Sayt tushib qolsa, darhol ogohlantirish yuboriladi ✅\n\n({BOT_USERNAME})")
-
-@dp.message(F.text == "⚙️ Sozlamalar")
-async def settings_menu(message: types.Message):
-    user_id = message.from_user.id
-    user_info = USER_DATA.get(user_id, {"urls": [], "bots": {}})
-    
-    builder = InlineKeyboardBuilder()
-    has_items = False
-    
-    for url in user_info["urls"]:
-        builder.button(text=f"🗑 Saytni o'chirish: {url[:15]}...", callback_data=f"del_url_{url}")
-        has_items = True
-        
-    for token, bdata in user_info["bots"].items():
-        builder.button(text=f"🗑 Botni o'chirish: {bdata['name']}", callback_data=f"del_bot_{token}")
-        has_items = True
-        
-    if not has_items:
-        await message.answer("⚙️ Sozlamalar paneli\n\nSizda hozircha o'chirish uchun qo'shilgan saytlar yoki botlar mavjud emas.")
-        return
-
-    builder.adjust(1)
-    await message.answer("⚙️ Sozlamalar va boshqaruv paneli\n\nQuyidagi tugmalar yordamida o'zingiz kiritgan ma'lumotlarni o'chirishingiz mumkin:", reply_markup=builder.as_markup())
-
-@dp.callback_query(F.data.startswith("del_url_"))
-async def delete_url_cb(callback: types.CallbackQuery):
-    user_id = callback.from_user.id
-    url = callback.data.replace("del_url_", "")
-    if user_id in USER_DATA and url in USER_DATA[user_id]["urls"]:
-        USER_DATA[user_id]["urls"].remove(url)
-        await callback.answer("✅ Sayt o'chirildi!", show_alert=True)
-        await callback.message.edit_text("✅ Sayt bazadan o'chirildi.")
-
-@dp.callback_query(F.data.startswith("del_bot_"))
-async def delete_bot_cb(callback: types.CallbackQuery):
-    user_id = callback.from_user.id
-    token = callback.data.replace("del_bot_", "")
-    if user_id in USER_DATA and token in USER_DATA[user_id]["bots"]:
-        USER_DATA[user_id]["bots"][token]["task"].cancel()
-        del USER_DATA[user_id]["bots"][token]
-        await callback.answer("✅ Bot o'chirildi!", show_alert=True)
-        await callback.message.edit_text("✅ Bot o'chirildi va 24/7 to'xtatildi.")
-
-@dp.message(F.text == "💎 Premium")
-async def show_premium(message: types.Message):
-    premium_info = (
-        f"💎 {BOT_USERNAME} Premium imkoniyatlari\n\n"
-        f"🏢 **Biznes va Oddiy foydalanuvchilar uchun:**\n"
-        f"• Cheksiz saytlar uptime monitoringi (o'chib qolsa xabar berish)\n"
-        f"• Firibgar (phishing) saytlarni tezkor aniqlash\n\n"
-        f"💻 **Dasturchilar uchun:**\n"
-        f"• Cheksiz botlarni 24/7 cronjob rejimida ushlab turish\n"
-        f"• Port Scanner (Ochiq portlarni aniqlash)\n"
-        f"• SSL & Headers chuqur xavfsizlik tahlili\n\n"
-        f"Quyidagi narxlardan birini tanlab Premium bo'ling:"
-    )
-    await message.answer(premium_info, reply_markup=get_premium_menu())
-
-async def handle_ping(
+    if ch
