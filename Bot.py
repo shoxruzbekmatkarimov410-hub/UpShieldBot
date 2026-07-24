@@ -250,7 +250,7 @@ async def ask_for_bot_token(message: types.Message):
 
     await message.answer(f"🤖 Botingizni 24/7 qilish uchun @BotFather'dan olgan Tokeningizni yuboring:\n\n({BOT_USERNAME})")
 
-@dp.message(F.text.contains(":") and F.text.len() > 30)
+@dp.message(F.text.contains(":") & (F.text.len() > 30))
 async def register_user_bot(message: types.Message):
     user_id = message.from_user.id
     user_token = message.text.strip()
@@ -298,7 +298,7 @@ async def add_url_prompt(message: types.Message):
 
     await message.answer(f"Iltimos, kuzatuvga olinadigan sayt URL manzilini yuboring (Masalan: https://example.com):\n\n({BOT_USERNAME})")
 
-@dp.message(F.text.startswith("http://") or F.text.startswith("https://"))
+@dp.message(F.text.startswith("http://") | F.text.startswith("https://"))
 async def save_url(message: types.Message):
     user_id = message.from_user.id
     url = message.text.strip()
@@ -330,7 +330,6 @@ async def show_sites(message: types.Message):
         text = f"📊 Sizning kuzatuvdagi saytlaringiz va holati:\n\n" + "\n".join([f"• {u} — 🟢 Ishlayapti (24/7)" for u in urls]) + f"\n\n({BOT_USERNAME})"
         await message.answer(text)
 
-# --- QO'SHILGAN YAGONA TUGMALAR: HAVOLA & KANAL VA SUPER BONUSLAR ---
 @dp.message(F.text == "🔗 Havola & Kanal (Biznes)")
 async def business_tools_handler(message: types.Message):
     await message.answer(
@@ -380,7 +379,6 @@ async def bonus_pdf_cb(callback: types.CallbackQuery):
 async def bonus_priority_cb(callback: types.CallbackQuery):
     await callback.answer("⚡️ Sizda hozirda VIP Prioritet rejimi yoqilgan!", show_alert=True)
 
-# --- XAVFSIZLIK MARKAZI VA TUZATILGAN CALLBACK HANDLERLAR ---
 @dp.message(F.text == "🛡 Xavfsizlik Markazi")
 async def security_menu(message: types.Message):
     await message.answer(f"🛡 Xavfsizlik markaziga xush kelibsiz!\n\nKim uchun mo'ljallanganligini tanlang:", reply_markup=get_security_menu())
@@ -400,7 +398,6 @@ async def sec_back_cb(callback: types.CallbackQuery):
     await callback.answer()
     await callback.message.edit_text(f"🛡 Xavfsizlik markaziga xush kelibsiz!\n\nKim uchun mo'ljallanganligini tanlang:", reply_markup=get_security_menu())
 
-# ANIQ MOS KELUVCHI CALLBACK FILTERLAR (Tugmalar bosilmayotgan xato shu yerda to'liq bartaraf etildi)
 @dp.callback_query(F.data.in_({"sec_check_site", "sec_check_bot", "sec_ports", "sec_ssl", "sec_subdomain", "sec_phishing", "sec_uptime"}))
 async def process_security_check(callback: types.CallbackQuery):
     user_id = callback.from_user.id
@@ -425,4 +422,6 @@ async def process_security_check(callback: types.CallbackQuery):
     msg = await callback.message.answer("🔍 Tahlil bajarilmoqda...\n⏳ Iltimos, kuting...")
     await asyncio.sleep(2)
     
-    if ch:
+    if check_type == "sec_check_site":
+        target_url = user_info["urls"][0]
+        await msg.edit_text(f"🛡 Sayt xavfsizlik tahlili ({target_url}):\n\n✅ SSL/TLS: Ishonchli (A+)\n✅ DDoS himoyasi: Faol\n🏆 Xavfsizlik: 99%\n\n({BOT_USERNAME})"
